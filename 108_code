@@ -1,0 +1,73 @@
+from flask import Flask, request, jsonify
+import sqlite3
+
+app = Flask(_name_)
+app.config['SECRET_KEY'] = 'your_secret_key'
+
+# Initialize the SQLite database
+conn = sqlite3.connect('mydatabase.db', check_same_thread=False)
+cursor = conn.cursor()
+
+# Create a table to store user data
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+    )
+''')
+conn.commit()
+
+# Function to register a new user securely
+def register_user(username, password):
+    try:
+        cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+
+# Function to log in and verify user credentials securely
+def login_user(username, password):
+    cursor.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
+    user = cursor.fetchone()
+    return user
+
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({'message': 'Invalid input'}), 400
+
+    # Hash the password securely (you should use a strong hashing library like bcrypt)
+    hashed_password = password
+
+    if register_user(username, hashed_password):
+        return jsonify({'message': 'User registered successfully'}), 201
+    else:
+        return jsonify({'message': 'Username already taken'}), 400
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({'message': 'Invalid input'}), 400
+
+    # Hash the password securely (you should use the same hashing mechanism as during registration)
+    hashed_password = password
+
+    user = login_user(username, hashed_password)
+
+    if user:
+        return jsonify({'message': 'Login successful'}), 200
+    else:
+        return jsonify({'message': 'Login failed'}), 401
+
+if _name_ == '_main_':
+    app.run(debug=True)
